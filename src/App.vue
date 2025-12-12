@@ -104,14 +104,25 @@ const drag = async (spriteName) => {
     if (itemRefs.value?.drop?.el?.style) {
       itemRefs.value.drop.el.style.display = 'none';
     }
-    const itemRef = itemRefs.value.drop;
-    const new_pos = itemRef.calcXY(mouseXY.y - parentRect.top, mouseXY.x - parentRect.left);
+    // Calcualte new position based on cell size
+    const mouseRelativeX = mouseXY.x - parentRect.left;
+    const mouseRelativeY = mouseXY.y - parentRect.top;
+    const cellWidth = 50; // row-height = 50
+    const cellHeight = 50;
+
+    const new_pos = {
+      x: Math.floor(mouseRelativeX / cellWidth),
+      y: Math.floor(mouseRelativeY / cellHeight)
+    };
 
     if (mouseInGrid === true) {
+      layout.value[index].x = new_pos.x;
+      layout.value[index].y = new_pos.y;
+
       layoutRef.value.emitter.emit('dragEvent', ['dragstart', 'drop', new_pos.x, new_pos.y, 1, 1]);
       DragPos.i = String(layout.value.length);
-      DragPos.x = layout.value[index].x;
-      DragPos.y = layout.value[index].y;
+      DragPos.x = new_pos.x;
+      DragPos.y = new_pos.y;
       DragPos.sprite = spriteName;
     }
     if (mouseInGrid === false) {

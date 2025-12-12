@@ -3,10 +3,15 @@
     :is-resizable="false" :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]"
     :use-css-transforms="true" class="grid-container">
     <GridItem v-for="item in layout" :key="item.i" :ref="e => setItemRef(item, e)" :x="item.x" :y="item.y" :w="item.w"
-      :h="item.h" :i="item.i" class="select-none">
+      :h="item.h" :i="item.i" class="select-none group" @move="onItemMove(item.i)" @moved="onItemMoved">
       <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
         :alt="item.sprite" />
       <span v-else class="text">{{ item.i }}</span>
+      <div v-show="draggingItemId !== item.i" @mousedown.prevent.stop="onDeleteMouseDown(item.i, $event)"
+        @mouseup.stop="onDeleteMouseUp(item.i, $event)" @touchstart.prevent.stop
+        class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded cursor-pointer flex items-center justify-center text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-red-600">
+        <XMarkIcon class="w-4 h-4" />
+      </div>
     </GridItem>
   </GridLayout>
   <div v-if="!clickedScroll" @click="scrollToBottom"
@@ -30,7 +35,7 @@
 <script setup>
 import { ref, nextTick } from 'vue';
 import { GridLayout, GridItem } from 'vue-grid-layout-v3';
-import { ArrowDownIcon } from '@heroicons/vue/24/solid'
+import { ArrowDownIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 
 import grassBlock1 from './assets/sprites/grass_block_1.png';
 import grassObj1 from './assets/sprites/grass_obj_1.png';
@@ -50,7 +55,6 @@ const sprites = {
 
 const layout = ref([
   { "x": -1, "y": 100, "w": 1, "h": 1, "i": "1", "sprite": "mushroom_block_1" }, //USED FOR FIXING GRID, SHOULD BE REMOVED AT THE END
-  { "x": 0, "y": 100, "w": 1, "h": 1, "i": "0", "sprite": "mushroom_block_1" }
 ]);
 
 const clickedScroll = ref(false);
@@ -58,6 +62,8 @@ const mouseXY = { x: null, y: null };
 const DragPos = { x: null, y: null, w: 1, h: 1, i: null, sprite: null };
 const layoutRef = ref(null);
 const itemRefs = ref({});
+const deleteButtonDown = ref({ itemId: null, startX: null, startY: null });
+const draggingItemId = ref(null);
 
 const scrollToBottom = () => {
   clickedScroll.value = true;
@@ -164,6 +170,39 @@ const setItemRef = (item, e) => {
 
 const setLayoutRef = (e) => {
   layoutRef.value = e;
+};
+
+const removeItem = (itemId) => {
+  layout.value = layout.value.filter(item => item.i !== itemId);
+};
+
+const onDeleteMouseDown = (itemId, event) => {
+  deleteButtonDown.value = {
+    itemId: itemId,
+    startX: event.clientX,
+    startY: event.clientY
+  };
+};
+
+const onDeleteMouseUp = (itemId, event) => {
+  if (deleteButtonDown.value.itemId === itemId) {
+    const deltaX = Math.abs(event.clientX - deleteButtonDown.value.startX);
+    const deltaY = Math.abs(event.clientY - deleteButtonDown.value.startY);
+
+    // If the mouse hasn't moved more than 5px, it's a click, delete the item
+    if (deltaX < 5 && deltaY < 5) {
+      removeItem(itemId);
+    }
+  }
+  deleteButtonDown.value = { itemId: null, startX: null, startY: null };
+};
+
+const onItemMove = (itemId) => {
+  draggingItemId.value = itemId;
+};
+
+const onItemMoved = () => {
+  draggingItemId.value = null;
 };
 </script>
 

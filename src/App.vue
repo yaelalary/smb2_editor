@@ -1,9 +1,9 @@
 <template>
-  <GridLayout v-model:layout="layout" :col-num="200" :row-height="50" :is-draggable="true" :is-resizable="false"
-    :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]" :use-css-transforms="true"
-    class="grid-container">
-    <GridItem v-for="item in layout" :key="item.i" :x="item.x" :y="item.y" :w="item.w" :h="item.h" :i="item.i"
-      class="select-none">
+  <GridLayout :ref="setLayoutRef" v-model:layout="layout" :col-num="200" :row-height="50" :is-draggable="true"
+    :is-resizable="false" :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]"
+    :use-css-transforms="true" class="grid-container">
+    <GridItem v-for="item in layout" :key="item.i" :ref="e => setItemRef(item, e)" :x="item.x" :y="item.y" :w="item.w"
+      :h="item.h" :i="item.i" class="select-none">
       <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
         :alt="item.sprite" />
       <span v-else class="text">{{ item.i }}</span>
@@ -13,12 +13,22 @@
     class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
     <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
   </div>
-  <div id="spLib" class="h-[200px]"></div>
+  <div id="spLib" class="h-[200px]">
+    <h2 class="text-center font-bold">Sprite Library</h2>
+    <div class="flex flex-wrap gap-4 justify-center p-4">
+      <div v-for="(sprite, spriteName) in sprites" :key="spriteName" class="inline-block max-w-[50px] cursor-move"
+        draggable="true" @drag="drag(spriteName)" @dragend="dragend" unselectable="on">
+        <img :src="sprite" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
+          style="image-rendering: pixelated;" />
+      </div>
+    </div>
+
+  </div>
   <div id="test"></div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { GridLayout, GridItem } from 'vue-grid-layout-v3';
 import { ArrowDownIcon } from '@heroicons/vue/24/solid'
 
@@ -40,11 +50,14 @@ const sprites = {
 
 const layout = ref([
   { "x": -1, "y": 100, "w": 1, "h": 1, "i": "1", "sprite": "mushroom_block_1" }, //USED FOR FIXING GRID, SHOULD BE REMOVED AT THE END
-  { "x": 0, "y": 100, "w": 1, "h": 1, "i": "0", "sprite": "mushroom_block_1" },
-
+  { "x": 0, "y": 100, "w": 1, "h": 1, "i": "0", "sprite": "mushroom_block_1" }
 ]);
 
 const clickedScroll = ref(false);
+const mouseXY = { x: null, y: null };
+const DragPos = { x: null, y: null, w: 1, h: 1, i: null, sprite: null };
+const layoutRef = ref(null);
+const itemRefs = ref({});
 
 const scrollToBottom = () => {
   clickedScroll.value = true;
@@ -52,6 +65,94 @@ const scrollToBottom = () => {
   if (spLib) {
     spLib.scrollIntoView({ block: 'end' });
   }
+};
+
+// Setup dragover listener
+if (typeof window !== 'undefined') {
+  document.addEventListener('dragover', (e) => {
+    mouseXY.x = e.clientX;
+    mouseXY.y = e.clientY;
+  }, false);
+}
+
+const drag = async (spriteName) => {
+  const parentRect = document.querySelector('.grid-container').getBoundingClientRect();
+  let mouseInGrid = false;
+  if (((mouseXY.x > parentRect.left) && (mouseXY.x < parentRect.right)) &&
+    ((mouseXY.y > parentRect.top) && (mouseXY.y < parentRect.bottom))) {
+    mouseInGrid = true;
+  }
+
+  if (mouseInGrid === true && (layout.value.findIndex(item => item.i === 'drop')) === -1) {
+    layout.value.push({
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1,
+      i: 'drop',
+      sprite: spriteName
+    });
+    await nextTick();
+  }
+
+  if (!itemRefs.value?.drop) {
+    return;
+  }
+
+  const index = layout.value.findIndex(item => item.i === 'drop');
+  if (index !== -1) {
+    if (itemRefs.value?.drop?.el?.style) {
+      itemRefs.value.drop.el.style.display = 'none';
+    }
+    const itemRef = itemRefs.value.drop;
+    const new_pos = itemRef.calcXY(mouseXY.y - parentRect.top, mouseXY.x - parentRect.left);
+
+    if (mouseInGrid === true) {
+      layoutRef.value.emitter.emit('dragEvent', ['dragstart', 'drop', new_pos.x, new_pos.y, 1, 1]);
+      DragPos.i = String(layout.value.length);
+      DragPos.x = layout.value[index].x;
+      DragPos.y = layout.value[index].y;
+      DragPos.sprite = spriteName;
+    }
+    if (mouseInGrid === false) {
+      layoutRef.value.emitter.emit('dragEvent', ['dragend', 'drop', new_pos.x, new_pos.y, 1, 1]);
+      layout.value = layout.value.filter(obj => obj.i !== 'drop');
+      await nextTick();
+    }
+  }
+};
+
+const dragend = async () => {
+  const parentRect = document.querySelector('.grid-container').getBoundingClientRect();
+  let mouseInGrid = false;
+  if (((mouseXY.x > parentRect.left) && (mouseXY.x < parentRect.right)) &&
+    ((mouseXY.y > parentRect.top) && (mouseXY.y < parentRect.bottom))) {
+    mouseInGrid = true;
+  }
+
+  if (mouseInGrid === true) {
+    layoutRef.value.emitter.emit('dragEvent', ['dragend', 'drop', DragPos.x, DragPos.y, 1, 1]);
+    layout.value = layout.value.filter(obj => obj.i !== 'drop');
+
+    layout.value.push({
+      x: DragPos.x,
+      y: DragPos.y,
+      w: 1,
+      h: 1,
+      i: DragPos.i,
+      sprite: DragPos.sprite
+    });
+    await nextTick();
+    layoutRef.value.emitter.emit('dragEvent', ['dragend', DragPos.i, DragPos.x, DragPos.y, 1, 1]);
+  }
+};
+
+const setItemRef = (item, e) => {
+  itemRefs.value[item.i] = e;
+};
+
+const setLayoutRef = (e) => {
+  layoutRef.value = e;
 };
 </script>
 

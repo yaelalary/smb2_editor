@@ -46,6 +46,11 @@ import hillRight from './assets/sprites/hill_right.png';
 import hillTop from './assets/sprites/hill_top.png';
 import hillTopLeft from './assets/sprites/hill_top_left.png';
 import hillTopRight from './assets/sprites/hill_top_right.png';
+import hillLeft2 from './assets/sprites/hill_left_2.png';
+import hillRight2 from './assets/sprites/hill_right_2.png';
+import hillCenter from './assets/sprites/hill_center.png';
+import hillTopLeft2 from './assets/sprites/hill_top_left_2.png';
+import hillTopRight2 from './assets/sprites/hill_top_right_2.png';
 import hoopster from './assets/sprites/hoopster.png';
 import mushroomBlock1 from './assets/sprites/mushroom_block_1.png';
 import ninji from './assets/sprites/ninji.png';
@@ -71,6 +76,11 @@ const sprites = {
   hill_top: hillTop,
   hill_top_left: hillTopLeft,
   hill_top_right: hillTopRight,
+  hill_left_2: hillLeft2,
+  hill_right_2: hillRight2,
+  hill_center: hillCenter,
+  hill_top_left_2: hillTopLeft2,
+  hill_top_right_2: hillTopRight2,
   hoopster: hoopster,
   mushroom_block_1: mushroomBlock1,
   ninji: ninji,

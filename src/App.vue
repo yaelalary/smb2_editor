@@ -1,24 +1,26 @@
 <template>
-  <GridLayout :ref="setLayoutRef" v-model:layout="layout" :col-num="200" :row-height="50" :is-draggable="true"
-    :is-resizable="false" :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]"
-    :use-css-transforms="true" class="grid-container">
-    <GridItem v-for="item in layout" :key="item.i" :ref="e => setItemRef(item, e)" :x="item.x" :y="item.y" :w="item.w"
-      :h="item.h" :i="item.i" class="select-none group" @move="onItemMove(item.i)" @moved="onItemMoved">
-      <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
-        :alt="item.sprite" />
-      <span v-else class="text">{{ item.i }}</span>
-      <div v-show="draggingItemId !== item.i" @mousedown.prevent.stop="onDeleteMouseDown(item.i, $event)"
-        @mouseup.stop="onDeleteMouseUp(item.i, $event)" @touchstart.prevent.stop
-        class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded cursor-pointer flex items-center justify-center text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-red-600">
-        <XMarkIcon class="w-4 h-4" />
-      </div>
-    </GridItem>
-  </GridLayout>
   <div v-if="!clickedScroll" @click="scrollToBottom"
     class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
     <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
   </div>
-  <div id="spLib" class="h-[200px]">
+  <div class="overflow-x-auto">
+    <GridLayout :ref="setLayoutRef" v-model:layout="layout" :col-num="200" :row-height="50" :is-draggable="true"
+      :is-resizable="false" :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]"
+      :use-css-transforms="true" class="grid-container">
+      <GridItem v-for="item in layout" :key="item.i" :ref="e => setItemRef(item, e)" :x="item.x" :y="item.y" :w="item.w"
+        :h="item.h" :i="item.i" class="select-none group" @move="onItemMove(item.i)" @moved="onItemMoved">
+        <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
+          :alt="item.sprite" />
+        <span v-else class="text">{{ item.i }}</span>
+        <div v-show="draggingItemId !== item.i" @mousedown.prevent.stop="onDeleteMouseDown(item.i, $event)"
+          @mouseup.stop="onDeleteMouseUp(item.i, $event)" @touchstart.prevent.stop
+          class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded cursor-pointer flex items-center justify-center text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-red-600">
+          <XMarkIcon class="w-4 h-4" />
+        </div>
+      </GridItem>
+    </GridLayout>
+  </div>
+  <div id="spLib" class="w-full h-[200px] mx-auto bg-white">
     <h2 class="text-center font-bold">Sprite Library</h2>
     <div class="flex flex-wrap gap-4 justify-center p-4">
       <div v-for="(sprite, spriteName) in sprites" :key="spriteName" class="inline-block max-w-[50px] cursor-move"
@@ -27,9 +29,7 @@
           style="image-rendering: pixelated;" />
       </div>
     </div>
-
   </div>
-  <div id="test"></div>
 </template>
 
 <script setup>
@@ -37,20 +37,54 @@ import { ref, nextTick } from 'vue';
 import { GridLayout, GridItem } from 'vue-grid-layout-v3';
 import { ArrowDownIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 
+import bobOmb from './assets/sprites/bob_omb.png';
+import flurry from './assets/sprites/flurry.png';
 import grassBlock1 from './assets/sprites/grass_block_1.png';
 import grassObj1 from './assets/sprites/grass_obj_1.png';
+import hillLeft from './assets/sprites/hill_left.png';
+import hillRight from './assets/sprites/hill_right.png';
+import hillTop from './assets/sprites/hill_top.png';
+import hillTopLeft from './assets/sprites/hill_top_left.png';
+import hillTopRight from './assets/sprites/hill_top_right.png';
+import hoopster from './assets/sprites/hoopster.png';
 import mushroomBlock1 from './assets/sprites/mushroom_block_1.png';
+import ninji from './assets/sprites/ninji.png';
+import pinkFireplant from './assets/sprites/pink_fireplant.png';
+import pinkMaskass from './assets/sprites/pink_maskass.png';
+import pokey from './assets/sprites/pokey.png';
+import pokeyBody from './assets/sprites/pokey_body.png';
+import potion from './assets/sprites/potion.png';
 import potBlock1 from './assets/sprites/pot_block_1.png';
 import radishObj1 from './assets/sprites/radish_obj_1.png';
 import radishObj2 from './assets/sprites/radish_obj_2.png';
+import redFireplant from './assets/sprites/red_fireplant.png';
+import redMaskass from './assets/sprites/red_maskass.png';
+import tweeter from './assets/sprites/tweeter.png';
 
 const sprites = {
+  bob_omb: bobOmb,
+  flurry: flurry,
   grass_block_1: grassBlock1,
   grass_obj_1: grassObj1,
+  hill_left: hillLeft,
+  hill_right: hillRight,
+  hill_top: hillTop,
+  hill_top_left: hillTopLeft,
+  hill_top_right: hillTopRight,
+  hoopster: hoopster,
   mushroom_block_1: mushroomBlock1,
+  ninji: ninji,
+  pink_fireplant: pinkFireplant,
+  pink_maskass: pinkMaskass,
+  pokey: pokey,
+  pokey_body: pokeyBody,
+  potion: potion,
   pot_block_1: potBlock1,
   radish_obj_1: radishObj1,
   radish_obj_2: radishObj2,
+  red_fireplant: redFireplant,
+  red_maskass: redMaskass,
+  tweeter: tweeter,
 };
 
 const layout = ref([

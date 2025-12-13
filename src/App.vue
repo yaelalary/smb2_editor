@@ -6,10 +6,10 @@
   <div class="overflow-auto h-[calc(100vh-200px)]">
     <div class="grid-container relative" @drop="onDrop" @dragover.prevent>
       <div v-for="item in layout" :key="item.i"
-        :style="{ left: item.x * 50 + 'px', top: item.y * 50 + 'px', zIndex: item.z || 1 }"
-        class="absolute w-[50px] h-[50px] select-none group cursor-grab active:cursor-grabbing"
-        @mousedown="startDrag(item, $event)" @touchstart="startDrag(item, $event)">
-        <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
+        :style="{ left: item.x * 50 + 'px', top: item.y * 50 + 'px', width: item.w * 50 + 'px', height: item.h * 50 + 'px', zIndex: item.z || 1 }"
+        class="absolute select-none group cursor-grab active:cursor-grabbing" @mousedown="startDrag(item, $event)"
+        @touchstart="startDrag(item, $event)">
+        <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite].src" class="sprite-img"
           :alt="item.sprite" />
         <span v-else class="text">{{ item.i }}</span>
         <div v-show="draggingItemId !== item.i" @mousedown.prevent.stop="onDeleteMouseDown(item.i, $event)"
@@ -25,7 +25,7 @@
     <div class="flex flex-wrap gap-4 justify-center p-4">
       <div v-for="(sprite, spriteName) in sprites" :key="spriteName" class="inline-block max-w-[50px] cursor-move"
         draggable="true" @drag="drag(spriteName)" @dragend="dragend" unselectable="on">
-        <img :src="sprite" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
+        <img :src="sprite.src" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
           style="image-rendering: pixelated;" />
       </div>
     </div>
@@ -35,70 +35,11 @@
 <script setup>
 import { ref } from 'vue';
 import { ArrowDownIcon, XMarkIcon } from '@heroicons/vue/24/solid'
-
-import bobOmb from './assets/sprites/bob_omb.png';
-import flurry from './assets/sprites/flurry.png';
-import grassBlock1 from './assets/sprites/grass_block_1.png';
-import grassObj1 from './assets/sprites/grass_obj_1.png';
-import hillLeft from './assets/sprites/hill_left.png';
-import hillRight from './assets/sprites/hill_right.png';
-import hillTop from './assets/sprites/hill_top.png';
-import hillTopLeft from './assets/sprites/hill_top_left.png';
-import hillTopRight from './assets/sprites/hill_top_right.png';
-import hillLeft2 from './assets/sprites/hill_left_2.png';
-import hillRight2 from './assets/sprites/hill_right_2.png';
-import hillCenter from './assets/sprites/hill_center.png';
-import hillTopLeft2 from './assets/sprites/hill_top_left_2.png';
-import hillTopRight2 from './assets/sprites/hill_top_right_2.png';
-import hoopster from './assets/sprites/hoopster.png';
-import mushroomBlock1 from './assets/sprites/mushroom_block_1.png';
-import ninji from './assets/sprites/ninji.png';
-import pinkFireplant from './assets/sprites/pink_fireplant.png';
-import pinkMaskass from './assets/sprites/pink_maskass.png';
-import pokey from './assets/sprites/pokey.png';
-import pokeyBody from './assets/sprites/pokey_body.png';
-import potion from './assets/sprites/potion.png';
-import potBlock1 from './assets/sprites/pot_block_1.png';
-import radishObj1 from './assets/sprites/radish_obj_1.png';
-import radishObj2 from './assets/sprites/radish_obj_2.png';
-import redFireplant from './assets/sprites/red_fireplant.png';
-import redMaskass from './assets/sprites/red_maskass.png';
-import tweeter from './assets/sprites/tweeter.png';
-
-const sprites = {
-  bob_omb: bobOmb,
-  flurry: flurry,
-  grass_block_1: grassBlock1,
-  grass_obj_1: grassObj1,
-  hill_left: hillLeft,
-  hill_right: hillRight,
-  hill_top: hillTop,
-  hill_top_left: hillTopLeft,
-  hill_top_right: hillTopRight,
-  hill_left_2: hillLeft2,
-  hill_right_2: hillRight2,
-  hill_center: hillCenter,
-  hill_top_left_2: hillTopLeft2,
-  hill_top_right_2: hillTopRight2,
-  hoopster: hoopster,
-  mushroom_block_1: mushroomBlock1,
-  ninji: ninji,
-  pink_fireplant: pinkFireplant,
-  pink_maskass: pinkMaskass,
-  pokey: pokey,
-  pokey_body: pokeyBody,
-  potion: potion,
-  pot_block_1: potBlock1,
-  radish_obj_1: radishObj1,
-  radish_obj_2: radishObj2,
-  red_fireplant: redFireplant,
-  red_maskass: redMaskass,
-  tweeter: tweeter,
-};
+import { sprites } from './sprites.js';
 
 const layout = ref([]);
 
-const clickedScroll = ref(false);
+// const clickedScroll = ref(false);
 const mouseXY = { x: null, y: null };
 const deleteButtonDown = ref({ itemId: null, startX: null, startY: null });
 const draggingItemId = ref(null);
@@ -107,13 +48,13 @@ const dragOffset = ref({ x: 0, y: 0 });
 let nextId = 0;
 const MAX_GRID_HEIGHT = 100; // Maximum number of rows
 
-const scrollToBottom = () => {
-  clickedScroll.value = true;
-  const spLib = document.getElementById('spLib');
-  if (spLib) {
-    spLib.scrollIntoView({ block: 'end' });
-  }
-};
+// const scrollToBottom = () => {
+//   clickedScroll.value = true;
+//   const spLib = document.getElementById('spLib');
+//   if (spLib) {
+//     spLib.scrollIntoView({ block: 'end' });
+//   }
+// };
 
 // Setup dragover listener for dragging from sprite library
 if (typeof window !== 'undefined') {
@@ -161,9 +102,12 @@ const onDrop = (e) => {
     const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
     const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
 
+    const spriteData = sprites[mouseXY.sprite];
     layout.value.push({
       x,
       y,
+      w: spriteData.w,
+      h: spriteData.h,
       i: String(nextId++),
       sprite: mouseXY.sprite,
       z: layout.value.length

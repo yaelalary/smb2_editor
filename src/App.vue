@@ -1,14 +1,14 @@
 <template>
-  <div v-if="!clickedScroll" @click="scrollToBottom"
+  <!-- <div v-if="!clickedScroll" @click="scrollToBottom"
     class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
     <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
-  </div>
-  <div class="overflow-x-auto">
-    <GridLayout :ref="setLayoutRef" v-model:layout="layout" :col-num="200" :row-height="50" :is-draggable="true"
-      :is-resizable="false" :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]"
-      :use-css-transforms="true" class="grid-container">
-      <GridItem v-for="item in layout" :key="item.i" :ref="e => setItemRef(item, e)" :x="item.x" :y="item.y" :w="item.w"
-        :h="item.h" :i="item.i" class="select-none group" @move="onItemMove(item.i)" @moved="onItemMoved">
+  </div> -->
+  <div class="overflow-auto h-[calc(100vh-200px)]">
+    <div class="grid-container relative" @drop="onDrop" @dragover.prevent>
+      <div v-for="item in layout" :key="item.i"
+        :style="{ left: item.x * 50 + 'px', top: item.y * 50 + 'px', zIndex: item.z || 1 }"
+        class="absolute w-[50px] h-[50px] select-none group cursor-grab active:cursor-grabbing"
+        @mousedown="startDrag(item, $event)" @touchstart="startDrag(item, $event)">
         <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
           :alt="item.sprite" />
         <span v-else class="text">{{ item.i }}</span>
@@ -17,10 +17,10 @@
           class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded cursor-pointer flex items-center justify-center text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-red-600">
           <XMarkIcon class="w-4 h-4" />
         </div>
-      </GridItem>
-    </GridLayout>
+      </div>
+    </div>
   </div>
-  <div id="spLib" class="w-full h-[200px] mx-auto bg-white">
+  <div id="spLib" class="w-full h-[200px] mx-auto bg-white fixed bottom-0 left-0 z-[9999]">
     <h2 class="text-center font-bold">Sprite Library</h2>
     <div class="flex flex-wrap gap-4 justify-center p-4">
       <div v-for="(sprite, spriteName) in sprites" :key="spriteName" class="inline-block max-w-[50px] cursor-move"
@@ -33,8 +33,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
-import { GridLayout, GridItem } from 'vue-grid-layout-v3';
+import { ref } from 'vue';
 import { ArrowDownIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 
 import bobOmb from './assets/sprites/bob_omb.png';
@@ -97,17 +96,16 @@ const sprites = {
   tweeter: tweeter,
 };
 
-const layout = ref([
-  { "x": -1, "y": 100, "w": 1, "h": 1, "i": "1", "sprite": "mushroom_block_1" }, //USED FOR FIXING GRID, SHOULD BE REMOVED AT THE END
-]);
+const layout = ref([]);
 
 const clickedScroll = ref(false);
 const mouseXY = { x: null, y: null };
-const DragPos = { x: null, y: null, w: 1, h: 1, i: null, sprite: null };
-const layoutRef = ref(null);
-const itemRefs = ref({});
 const deleteButtonDown = ref({ itemId: null, startX: null, startY: null });
 const draggingItemId = ref(null);
+const draggedItem = ref(null);
+const dragOffset = ref({ x: 0, y: 0 });
+let nextId = 0;
+const MAX_GRID_HEIGHT = 100; // Maximum number of rows
 
 const scrollToBottom = () => {
   clickedScroll.value = true;
@@ -117,103 +115,81 @@ const scrollToBottom = () => {
   }
 };
 
-// Setup dragover listener
+// Setup dragover listener for dragging from sprite library
 if (typeof window !== 'undefined') {
   document.addEventListener('dragover', (e) => {
     mouseXY.x = e.clientX;
     mouseXY.y = e.clientY;
   }, false);
+
+  document.addEventListener('mousemove', (e) => {
+    if (draggedItem.value) {
+      const gridContainer = document.querySelector('.grid-container');
+      if (gridContainer) {
+        const rect = gridContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left - dragOffset.value.x + window.scrollX;
+        const y = e.clientY - rect.top - dragOffset.value.y + window.scrollY;
+
+        const item = layout.value.find(i => i.i === draggedItem.value.i);
+        if (item) {
+          item.x = Math.max(0, Math.round(x / 50));
+          item.y = Math.max(0, Math.min(Math.round(y / 50), MAX_GRID_HEIGHT - 1));
+        }
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    draggedItem.value = null;
+    draggingItemId.value = null;
+  });
 }
 
-const drag = async (spriteName) => {
-  const parentRect = document.querySelector('.grid-container').getBoundingClientRect();
-  let mouseInGrid = false;
-  if (((mouseXY.x > parentRect.left) && (mouseXY.x < parentRect.right)) &&
-    ((mouseXY.y > parentRect.top) && (mouseXY.y < parentRect.bottom))) {
-    mouseInGrid = true;
-  }
+const drag = (spriteName) => {
+  // Store the sprite name for the drop event
+  mouseXY.sprite = spriteName;
+};
 
-  if (mouseInGrid === true && (layout.value.findIndex(item => item.i === 'drop')) === -1) {
+const dragend = () => {
+  mouseXY.sprite = null;
+};
+
+const onDrop = (e) => {
+  if (mouseXY.sprite) {
+    const gridContainer = document.querySelector('.grid-container');
+    const rect = gridContainer.getBoundingClientRect();
+    const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+    const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
     layout.value.push({
-      x: 0,
-      y: 0,
-      w: 1,
-      h: 1,
-      i: 'drop',
-      sprite: spriteName
+      x,
+      y,
+      i: String(nextId++),
+      sprite: mouseXY.sprite,
+      z: layout.value.length
     });
-    await nextTick();
-  }
 
-  if (!itemRefs.value?.drop) {
+    mouseXY.sprite = null;
+  }
+};
+
+const startDrag = (item, event) => {
+  // Don't start drag if clicking on delete button
+  if (event.target.closest('.bg-red-500')) {
     return;
   }
 
-  const index = layout.value.findIndex(item => item.i === 'drop');
-  if (index !== -1) {
-    if (itemRefs.value?.drop?.el?.style) {
-      itemRefs.value.drop.el.style.display = 'none';
-    }
-    // Calcualte new position based on cell size
-    const mouseRelativeX = mouseXY.x - parentRect.left;
-    const mouseRelativeY = mouseXY.y - parentRect.top;
-    const cellWidth = 50; // row-height = 50
-    const cellHeight = 50;
+  draggedItem.value = item;
+  draggingItemId.value = item.i;
 
-    const new_pos = {
-      x: Math.floor(mouseRelativeX / cellWidth),
-      y: Math.floor(mouseRelativeY / cellHeight)
-    };
+  const element = event.currentTarget;
+  const rect = element.getBoundingClientRect();
+  dragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
 
-    if (mouseInGrid === true) {
-      layout.value[index].x = new_pos.x;
-      layout.value[index].y = new_pos.y;
-
-      layoutRef.value.emitter.emit('dragEvent', ['dragstart', 'drop', new_pos.x, new_pos.y, 1, 1]);
-      DragPos.i = String(layout.value.length);
-      DragPos.x = new_pos.x;
-      DragPos.y = new_pos.y;
-      DragPos.sprite = spriteName;
-    }
-    if (mouseInGrid === false) {
-      layoutRef.value.emitter.emit('dragEvent', ['dragend', 'drop', new_pos.x, new_pos.y, 1, 1]);
-      layout.value = layout.value.filter(obj => obj.i !== 'drop');
-      await nextTick();
-    }
-  }
-};
-
-const dragend = async () => {
-  const parentRect = document.querySelector('.grid-container').getBoundingClientRect();
-  let mouseInGrid = false;
-  if (((mouseXY.x > parentRect.left) && (mouseXY.x < parentRect.right)) &&
-    ((mouseXY.y > parentRect.top) && (mouseXY.y < parentRect.bottom))) {
-    mouseInGrid = true;
-  }
-
-  if (mouseInGrid === true) {
-    layoutRef.value.emitter.emit('dragEvent', ['dragend', 'drop', DragPos.x, DragPos.y, 1, 1]);
-    layout.value = layout.value.filter(obj => obj.i !== 'drop');
-
-    layout.value.push({
-      x: DragPos.x,
-      y: DragPos.y,
-      w: 1,
-      h: 1,
-      i: DragPos.i,
-      sprite: DragPos.sprite
-    });
-    await nextTick();
-    layoutRef.value.emitter.emit('dragEvent', ['dragend', DragPos.i, DragPos.x, DragPos.y, 1, 1]);
-  }
-};
-
-const setItemRef = (item, e) => {
-  itemRefs.value[item.i] = e;
-};
-
-const setLayoutRef = (e) => {
-  layoutRef.value = e;
+  event.preventDefault();
 };
 
 const removeItem = (itemId) => {
@@ -240,14 +216,6 @@ const onDeleteMouseUp = (itemId, event) => {
   }
   deleteButtonDown.value = { itemId: null, startX: null, startY: null };
 };
-
-const onItemMove = (itemId) => {
-  draggingItemId.value = itemId;
-};
-
-const onItemMoved = () => {
-  draggingItemId.value = null;
-};
 </script>
 
 <style>
@@ -262,7 +230,13 @@ html {
 
 .grid-container {
   width: 10000px;
-  min-height: 10000px;
+  height: 5000px;
+  background: #f0f0f0;
+  background-image:
+    linear-gradient(to right, #ccc 1px, transparent 1px),
+    linear-gradient(to bottom, #ccc 1px, transparent 1px);
+  background-size: 50px 50px;
+  background-position: 0 0;
 }
 
 .vue-grid-layout {

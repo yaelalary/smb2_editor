@@ -3,8 +3,13 @@
     class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
     <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
   </div> -->
-  <div class="overflow-auto h-[calc(100vh-200px)]">
+  <div class="overflow-auto h-[calc(100vh-240px)]">
     <div class="grid-container relative" @drop="onDrop" @dragover.prevent>
+      <!-- Drop indicator -->
+      <div v-if="dropIndicator.visible"
+        :style="{ left: dropIndicator.x * 50 + 'px', top: dropIndicator.y * 50 + 'px', width: dropIndicator.w * 50 + 'px', height: dropIndicator.h * 50 + 'px' }"
+        class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30 pointer-events-none z-[9998]">
+      </div>
       <div v-for="item in layout" :key="item.i"
         :style="{ left: item.x * 50 + 'px', top: item.y * 50 + 'px', width: item.w * 50 + 'px', height: item.h * 50 + 'px', zIndex: item.z || 1 }"
         class="absolute select-none group cursor-grab active:cursor-grabbing" @mousedown="startDrag(item, $event)"
@@ -20,11 +25,28 @@
       </div>
     </div>
   </div>
-  <div id="spLib" class="w-full h-[200px] mx-auto bg-white fixed bottom-0 left-0 z-[9999]">
-    <h2 class="text-center font-bold">Sprite Library</h2>
-    <div class="flex flex-wrap gap-4 justify-center p-4">
-      <div v-for="(sprite, spriteName) in sprites" :key="spriteName" class="inline-block max-w-[50px] cursor-move"
-        draggable="true" @drag="drag(spriteName)" @dragend="dragend" unselectable="on">
+  <div id="spLib"
+    class="w-full h-[240px] overflow-auto mx-auto bg-white fixed bottom-0 left-0 z-[9999] border-t-2 border-gray-300">
+    <div class="flex items-center gap-2 px-2 py-2 bg-gray-100 border-b border-gray-300 min-h-[40px]">
+      <div class="w-7 h-7 flex-shrink-0">
+        <button v-if="currentFolder" @click="navigateBack"
+          class="p-1 hover:bg-gray-200 rounded w-full h-full flex items-center justify-center">
+          <ArrowLeftIcon class="w-5 h-5" />
+        </button>
+      </div>
+      <h2 class="font-bold text-sm truncate">{{ currentFolder || 'Sprite Library' }}</h2>
+    </div>
+    <div class="flex flex-wrap gap-4 justify-start p-4">
+      <!-- Folders -->
+      <div v-for="folder in subFolders" :key="folder.path" @click="navigateToFolder(folder.path)"
+        class="inline-flex flex-col items-center w-16 cursor-pointer hover:bg-gray-100 p-2 rounded">
+        <FolderIcon class="w-12 h-12 text-yellow-500" />
+        <span class="text-xs text-center mt-1 break-words w-full">{{ folder.name }}</span>
+      </div>
+      <!-- Sprites -->
+      <div v-for="(sprite, spriteName) in filteredSprites" :key="spriteName"
+        class="inline-block max-w-[50px] cursor-move" draggable="true" @dragstart="onDragStart(spriteName, $event)"
+        @drag="drag(spriteName)" @dragend="dragend" unselectable="on">
         <img :src="sprite.src" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
           style="image-rendering: pixelated;" />
       </div>
@@ -33,11 +55,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { ArrowDownIcon, XMarkIcon } from '@heroicons/vue/24/solid'
-import { sprites } from './sprites.js';
+import { ref, computed } from 'vue';
+import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid'
+import { sprites, spriteFolders } from './sprites.js';
 
 const layout = ref([]);
+const currentFolder = ref('');
 
 // const clickedScroll = ref(false);
 const mouseXY = { x: null, y: null };
@@ -45,8 +68,43 @@ const deleteButtonDown = ref({ itemId: null, startX: null, startY: null });
 const draggingItemId = ref(null);
 const draggedItem = ref(null);
 const dragOffset = ref({ x: 0, y: 0 });
+const dropIndicator = ref({ visible: false, x: 0, y: 0, w: 1, h: 1 });
 let nextId = 0;
 const MAX_GRID_HEIGHT = 100; // Maximum number of rows
+
+// Filter sprites by current folder
+const filteredSprites = computed(() => {
+  const result = {};
+  for (const [name, sprite] of Object.entries(sprites)) {
+    if (sprite.folder === currentFolder.value) {
+      result[name] = sprite;
+    }
+  }
+  return result;
+});
+
+// Get subfolders of current folder
+const subFolders = computed(() => {
+  const result = [];
+  for (const [path, folder] of Object.entries(spriteFolders)) {
+    if (folder.parent === currentFolder.value) {
+      result.push(folder);
+    }
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const navigateToFolder = (folderPath) => {
+  currentFolder.value = folderPath;
+};
+
+const navigateBack = () => {
+  const currentPath = currentFolder.value;
+  if (currentPath) {
+    const parts = currentPath.split('/');
+    currentFolder.value = parts.slice(0, -1).join('/');
+  }
+};
 
 // const scrollToBottom = () => {
 //   clickedScroll.value = true;
@@ -61,6 +119,25 @@ if (typeof window !== 'undefined') {
   document.addEventListener('dragover', (e) => {
     mouseXY.x = e.clientX;
     mouseXY.y = e.clientY;
+
+    // Update drop indicator if dragging a sprite from library
+    if (mouseXY.sprite) {
+      const gridContainer = document.querySelector('.grid-container');
+      if (gridContainer) {
+        const rect = gridContainer.getBoundingClientRect();
+        const spriteData = sprites[mouseXY.sprite];
+        const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+        const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+        dropIndicator.value = {
+          visible: true,
+          x,
+          y,
+          w: spriteData.w,
+          h: spriteData.h
+        };
+      }
+    }
   }, false);
 
   document.addEventListener('mousemove', (e) => {
@@ -86,6 +163,16 @@ if (typeof window !== 'undefined') {
   });
 }
 
+const onDragStart = (spriteName, event) => {
+  // Hide the default drag image
+  const img = new Image();
+  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  event.dataTransfer.setDragImage(img, 0, 0);
+
+  // Store the sprite name for the drop event
+  mouseXY.sprite = spriteName;
+};
+
 const drag = (spriteName) => {
   // Store the sprite name for the drop event
   mouseXY.sprite = spriteName;
@@ -93,6 +180,7 @@ const drag = (spriteName) => {
 
 const dragend = () => {
   mouseXY.sprite = null;
+  dropIndicator.value.visible = false;
 };
 
 const onDrop = (e) => {
@@ -114,6 +202,7 @@ const onDrop = (e) => {
     });
 
     mouseXY.sprite = null;
+    dropIndicator.value.visible = false;
   }
 };
 

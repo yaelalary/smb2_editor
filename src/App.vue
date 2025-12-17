@@ -7,18 +7,15 @@
     class="h-fit fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-3 overflow-hidden">
     <div class="flex items-center gap-2">
       <span class="font-semibold text-gray-700 text-sm">BG:</span>
-      <!-- Couleur sélectionnée -->
       <div :style="{ backgroundColor: backgroundColor }"
         class="w-8 h-8 rounded-full border-2 border-blue-500 ring-2 ring-blue-300"
         :title="availableColors.find(c => c.value === backgroundColor)?.name">
       </div>
-      <!-- Bouton chevron -->
       <button @click="toggleColorPalette"
         class="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded transition-all"
         :class="{ 'rotate-180': colorPaletteOpen }">
         <ChevronRightIcon class="w-5 h-5 text-gray-600" />
       </button>
-      <!-- Palette de couleurs dépliable inline -->
       <Transition enter-active-class="transition-all duration-300 ease-out"
         leave-active-class="transition-all duration-200 ease-in" enter-from-class="opacity-0 -translate-x-4"
         enter-to-class="opacity-100 translate-x-0" leave-from-class="opacity-100 translate-x-0"
@@ -35,7 +32,6 @@
   </div>
   <div class="overflow-auto h-[calc(100vh-240px)]">
     <div class="grid-container relative" @drop="onDrop" @dragover.prevent>
-      <!-- Drop indicator -->
       <div v-if="dropIndicator.visible"
         :style="{ left: dropIndicator.x * 50 + 'px', top: dropIndicator.y * 50 + 'px', width: dropIndicator.w * 50 + 'px', height: dropIndicator.h * 50 + 'px' }"
         class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30 pointer-events-none z-[9998]">

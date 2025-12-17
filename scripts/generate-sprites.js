@@ -1,21 +1,14 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import sizeOf from 'image-size'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const SPRITES_DIR = path.join(__dirname, '../src/assets/sprites improved')
 const OUTPUT_FILE = path.join(__dirname, '../src/sprites.js')
-
-// Default sizes for sprites (can be customized)
-const SPRITE_SIZES = {
-  // Add custom sizes here if needed
-  // 'sprite_name': { w: 2, h: 1 },
-  snake: { w: 1, h: 2 },
-  rondin: { w: 2, h: 1 },
-  pokey: { w: 1, h: 2 },
-}
+const CELL_SIZE = 16 // Each grid cell represents 16 pixels in the sprite
 
 function toValidVariableName(str) {
   // Replace hyphens with underscores and keep underscores as is
@@ -89,13 +82,26 @@ function generateSpritesFile() {
     // Generate import statement
     imports.push(`import ${varName} from './assets/sprites improved/${importPath}';`)
 
-    // Get sprite size (default to 1x1)
-    const size = SPRITE_SIZES[keyName] || { w: 1, h: 1 }
+    // Calculate sprite size from image dimensions
+    const fullPath = path.join(SPRITES_DIR, file)
+    let w = 1
+    let h = 1
+
+    try {
+      const buffer = fs.readFileSync(fullPath)
+      const dimensions = sizeOf(buffer)
+      w = Math.round(dimensions.width / CELL_SIZE)
+      h = Math.round(dimensions.height / CELL_SIZE)
+
+      // Ensure minimum size of 1x1
+      w = Math.max(1, w)
+      h = Math.max(1, h)
+    } catch (error) {
+      console.warn(`⚠️  Could not read dimensions for ${file}: ${error.message}`)
+    }
 
     // Generate sprite entry with folder information
-    spriteEntries.push(
-      `  ${keyName}: { src: ${varName}, w: ${size.w}, h: ${size.h}, folder: '${folder}' },`,
-    )
+    spriteEntries.push(`  ${keyName}: { src: ${varName}, w: ${w}, h: ${h}, folder: '${folder}' },`)
   })
 
   // Build folder hierarchy

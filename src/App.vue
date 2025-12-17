@@ -12,7 +12,7 @@
         :title="availableColors.find(c => c.value === backgroundColor)?.name">
       </div>
       <button @click="toggleColorPalette"
-        class="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded transition-all"
+        class="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-all"
         :class="{ 'rotate-180': colorPaletteOpen }">
         <ChevronRightIcon class="w-5 h-5 text-gray-600" />
       </button>
@@ -28,13 +28,34 @@
           </div>
         </div>
       </Transition>
+      <div class="ml-4 flex items-center gap-2 border-l-2 border-gray-300 pl-4">
+        <button @click="brushMode = !brushMode; if (brushMode) eraserMode = false" :class="[
+          'w-10 h-10 flex items-center justify-center rounded transition-all',
+          brushMode ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+        ]" :title="brushMode ? 'Brush mode active' : 'Activate brush mode'">
+          <PaintBrushIcon class="w-5 h-5" />
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button @click="eraserMode = !eraserMode; if (eraserMode) brushMode = false" :class="[
+          'w-10 h-10 flex items-center justify-center rounded transition-all',
+          eraserMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+        ]" :title="eraserMode ? 'Eraser mode active' : 'Activate eraser mode'">
+          <TrashIcon class="w-5 h-5" />
+        </button>
+      </div>
     </div>
   </div>
   <div class="overflow-auto h-[calc(100vh-240px)]">
-    <div class="grid-container relative" @drop="onDrop" @dragover.prevent>
+    <div class="grid-container relative" @drop="onDrop" @dragover.prevent @mousedown="onGridMouseDown">
       <div v-if="dropIndicator.visible"
         :style="{ left: dropIndicator.x * 50 + 'px', top: dropIndicator.y * 50 + 'px', width: dropIndicator.w * 50 + 'px', height: dropIndicator.h * 50 + 'px' }"
         class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30 pointer-events-none z-[9998]">
+      </div>
+      <div v-if="brushIndicator.visible && brushIndicator.sprite && sprites[brushIndicator.sprite]"
+        :style="{ left: brushIndicator.x * 50 + 'px', top: brushIndicator.y * 50 + 'px', width: sprites[brushIndicator.sprite].w * 50 + 'px', height: sprites[brushIndicator.sprite].h * 50 + 'px' }"
+        class="absolute pointer-events-none z-[9998] opacity-30">
+        <img :src="sprites[brushIndicator.sprite].src" class="sprite-img" />
       </div>
       <div v-for="item in layout" :key="item.i"
         :style="{ left: item.x * 50 + 'px', top: item.y * 50 + 'px', width: item.w * 50 + 'px', height: item.h * 50 + 'px', zIndex: item.z || 1 }"
@@ -63,16 +84,16 @@
       <h2 class="font-bold text-sm truncate">{{ currentFolder || 'Sprite Library' }}</h2>
     </div>
     <div class="flex flex-wrap gap-4 justify-start p-4">
-      <!-- Folders -->
       <div v-for="folder in subFolders" :key="folder.path" @click="navigateToFolder(folder.path)"
         class="inline-flex flex-col items-center w-16 cursor-pointer hover:bg-gray-100 p-2 rounded">
         <FolderIcon class="w-12 h-12 text-yellow-500" />
         <span class="text-xs text-center mt-1 break-words w-full">{{ folder.name }}</span>
       </div>
-      <!-- Sprites -->
-      <div v-for="(sprite, spriteName) in filteredSprites" :key="spriteName"
-        class="inline-block max-w-[50px] cursor-move" draggable="true" @dragstart="onDragStart(spriteName, $event)"
-        @drag="drag(spriteName)" @dragend="dragend" unselectable="on">
+      <div v-for="(sprite, spriteName) in filteredSprites" :key="spriteName" :class="[
+        'inline-block max-w-[50px] cursor-move p-1 rounded transition-all',
+        brushMode && selectedBrushSprite === spriteName ? 'ring-2 ring-blue-500 bg-blue-100' : ''
+      ]" draggable="true" @dragstart="onDragStart(spriteName, $event)" @drag="drag(spriteName)" @dragend="dragend"
+        @click="brushMode && (selectedBrushSprite = spriteName)" unselectable="on">
         <img :src="sprite.src" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
           style="image-rendering: pixelated;" />
       </div>
@@ -82,13 +103,19 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid'
+import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon, PaintBrushIcon } from '@heroicons/vue/24/solid'
+import { TrashIcon } from '@heroicons/vue/24/outline'
 import { sprites, spriteFolders } from './sprites.js';
 
 const layout = ref([]);
 const currentFolder = ref('');
 const backgroundColor = ref('#f0f0f0');
 const colorPaletteOpen = ref(false);
+const brushMode = ref(false);
+const selectedBrushSprite = ref(null);
+const isPainting = ref(false);
+const eraserMode = ref(false);
+const isErasing = ref(false);
 
 const availableColors = [
   { name: 'Black', value: '#000000' },
@@ -120,6 +147,7 @@ const draggingItemId = ref(null);
 const draggedItem = ref(null);
 const dragOffset = ref({ x: 0, y: 0 });
 const dropIndicator = ref({ visible: false, x: 0, y: 0, w: 1, h: 1 });
+const brushIndicator = ref({ visible: false, x: 0, y: 0, sprite: null });
 let nextId = 0;
 const MAX_GRID_HEIGHT = 100; // Maximum number of rows
 
@@ -164,6 +192,58 @@ const toggleColorPalette = () => {
 const selectColor = (color) => {
   backgroundColor.value = color;
   colorPaletteOpen.value = false;
+};
+
+const paintSprite = (e) => {
+  if (!brushMode.value || !selectedBrushSprite.value) return;
+
+  const gridContainer = document.querySelector('.grid-container');
+  if (!gridContainer) return;
+
+  const rect = gridContainer.getBoundingClientRect();
+  const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+  const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+  // Check if sprite already exists at this position
+  const exists = layout.value.some(item => item.x === x && item.y === y && item.sprite === selectedBrushSprite.value);
+  if (exists) return;
+
+  const spriteData = sprites[selectedBrushSprite.value];
+  layout.value.push({
+    x,
+    y,
+    w: spriteData.w,
+    h: spriteData.h,
+    i: String(nextId++),
+    sprite: selectedBrushSprite.value,
+    z: layout.value.length
+  });
+};
+
+const eraseSprite = (e) => {
+  if (!eraserMode.value) return;
+
+  const gridContainer = document.querySelector('.grid-container');
+  if (!gridContainer) return;
+
+  const rect = gridContainer.getBoundingClientRect();
+  const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+  const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+  // Remove all sprites at this position
+  layout.value = layout.value.filter(item => !(item.x === x && item.y === y));
+};
+
+const onGridMouseDown = (e) => {
+  if (brushMode.value && selectedBrushSprite.value) {
+    e.preventDefault();
+    isPainting.value = true;
+    paintSprite(e);
+  } else if (eraserMode.value) {
+    e.preventDefault();
+    isErasing.value = true;
+    eraseSprite(e);
+  }
 };
 
 // const scrollToBottom = () => {
@@ -215,15 +295,64 @@ if (typeof window !== 'undefined') {
         }
       }
     }
+
+    // Update brush indicator position
+    if (brushMode.value && selectedBrushSprite.value) {
+      const gridContainer = document.querySelector('.grid-container');
+      if (gridContainer) {
+        const rect = gridContainer.getBoundingClientRect();
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        // Check if mouse is over the grid
+        if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
+          const x = Math.max(0, Math.floor((mouseX - rect.left + window.scrollX) / 50));
+          const y = Math.max(0, Math.min(Math.floor((mouseY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+          brushIndicator.value = {
+            visible: true,
+            x,
+            y,
+            sprite: selectedBrushSprite.value
+          };
+        } else {
+          brushIndicator.value.visible = false;
+        }
+      }
+    } else {
+      brushIndicator.value.visible = false;
+    }
+
+    // Handle painting while mouse is pressed - check if button is still down
+    if (e.buttons === 1) {
+      if (isPainting.value && brushMode.value && selectedBrushSprite.value) {
+        paintSprite(e);
+      } else if (isErasing.value && eraserMode.value) {
+        eraseSprite(e);
+      }
+    } else {
+      // Button released, stop painting/erasing
+      isPainting.value = false;
+      isErasing.value = false;
+    }
   });
 
   document.addEventListener('mouseup', () => {
     draggedItem.value = null;
     draggingItemId.value = null;
+    isPainting.value = false;
+    isErasing.value = false;
   });
 }
 
 const onDragStart = (spriteName, event) => {
+  // In brush mode, just select the sprite
+  if (brushMode.value) {
+    selectedBrushSprite.value = spriteName;
+    event.preventDefault();
+    return;
+  }
+
   // Hide the default drag image
   const img = new Image();
   img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -267,6 +396,11 @@ const onDrop = (e) => {
 };
 
 const startDrag = (item, event) => {
+  // Don't start drag if in brush or eraser mode
+  if (brushMode.value || eraserMode.value) {
+    return;
+  }
+
   // Don't start drag if clicking on delete button
   if (event.target.closest('.bg-red-500')) {
     return;

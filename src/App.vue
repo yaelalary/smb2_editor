@@ -3,6 +3,19 @@
     class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
     <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
   </div> -->
+  <div class="h-24 fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-4">
+    <div class="flex items-center gap-4">
+      <span class="font-semibold text-gray-700">Background:</span>
+      <div class="flex gap-3">
+        <div v-for="color in availableColors" :key="color.value" @click="backgroundColor = color.value"
+          :style="{ backgroundColor: color.value }" :class="[
+            'w-10 h-10 rounded-full cursor-pointer border-2 transition-all hover:scale-110',
+            backgroundColor === color.value ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-400'
+          ]" :title="color.name">
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="overflow-auto h-[calc(100vh-240px)]">
     <div class="grid-container relative" @drop="onDrop" @dragover.prevent>
       <!-- Drop indicator -->
@@ -26,8 +39,8 @@
     </div>
   </div>
   <div id="spLib"
-    class="w-full h-[240px] overflow-auto mx-auto bg-white fixed bottom-0 left-0 z-[9999] border-t-2 border-gray-300">
-    <div class="flex items-center gap-2 px-2 py-2 bg-gray-100 border-b border-gray-300 min-h-[40px]">
+    class="w-full h-[240px] overflow-auto mx-auto bg-gray-100 fixed bottom-0 left-0 z-[9999] border-t-1 border-gray-300">
+    <div class="flex items-center gap-2 px-2 py-2 bg-gray-200 border-b border-gray-300 min-h-[40px]">
       <div class="w-7 h-7 flex-shrink-0">
         <button v-if="currentFolder" @click="navigateBack"
           class="p-1 hover:bg-gray-200 rounded w-full h-full flex items-center justify-center">
@@ -61,6 +74,30 @@ import { sprites, spriteFolders } from './sprites.js';
 
 const layout = ref([]);
 const currentFolder = ref('');
+const backgroundColor = ref('#f0f0f0');
+
+const availableColors = [
+  { name: 'Black', value: '#000000' },
+
+  { name: 'Dark Blue', value: '#0000A8' },
+  { name: 'Blue', value: '#0000FE' },
+  { name: 'Light Blue', value: '#0078F8' },
+  { name: 'Lighter Blue', value: '#3CBCFD' },
+
+  { name: 'Purple', value: '#44009C' },
+  { name: 'Light Purple', value: '#9979F9' },
+  { name: 'Lighter Purple', value: '#B8B9F8' },
+
+  { name: 'Dark Teal', value: '#004358' },
+  { name: 'Teal', value: '#008088' },
+  { name: 'Light Teal', value: '#008B8B' },
+  { name: 'Green', value: '#00A801' },
+
+  { name: 'Dark Orange', value: '#7D0B00' },
+  { name: 'Orange', value: '#C84C0C' },
+
+  { name: 'Yellow', value: '#FBDB7B' },
+];
 
 // const clickedScroll = ref(false);
 const mouseXY = { x: null, y: null };
@@ -264,7 +301,7 @@ html {
 .grid-container {
   width: 10000px;
   height: 5000px;
-  background: #f0f0f0;
+  background-color: v-bind(backgroundColor);
   background-image:
     linear-gradient(to right, #ccc 1px, transparent 1px),
     linear-gradient(to bottom, #ccc 1px, transparent 1px);

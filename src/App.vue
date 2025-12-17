@@ -3,17 +3,34 @@
     class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
     <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
   </div> -->
-  <div class="h-24 fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-4">
-    <div class="flex items-center gap-4">
-      <span class="font-semibold text-gray-700">Background:</span>
-      <div class="flex gap-3">
-        <div v-for="color in availableColors" :key="color.value" @click="backgroundColor = color.value"
-          :style="{ backgroundColor: color.value }" :class="[
-            'w-10 h-10 rounded-full cursor-pointer border-2 transition-all hover:scale-110',
-            backgroundColor === color.value ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-400'
-          ]" :title="color.name">
-        </div>
+  <div
+    class="h-fit fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-3 overflow-hidden">
+    <div class="flex items-center gap-2">
+      <span class="font-semibold text-gray-700 text-sm">BG:</span>
+      <!-- Couleur sélectionnée -->
+      <div :style="{ backgroundColor: backgroundColor }"
+        class="w-8 h-8 rounded-full border-2 border-blue-500 ring-2 ring-blue-300"
+        :title="availableColors.find(c => c.value === backgroundColor)?.name">
       </div>
+      <!-- Bouton chevron -->
+      <button @click="toggleColorPalette"
+        class="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded transition-all"
+        :class="{ 'rotate-180': colorPaletteOpen }">
+        <ChevronRightIcon class="w-5 h-5 text-gray-600" />
+      </button>
+      <!-- Palette de couleurs dépliable inline -->
+      <Transition enter-active-class="transition-all duration-300 ease-out"
+        leave-active-class="transition-all duration-200 ease-in" enter-from-class="opacity-0 -translate-x-4"
+        enter-to-class="opacity-100 translate-x-0" leave-from-class="opacity-100 translate-x-0"
+        leave-to-class="opacity-0 -translate-x-4">
+        <div v-if="colorPaletteOpen" class="flex gap-2 pl-2 border-l-2 border-gray-300">
+          <div v-for="color in availableColors.filter(c => c.value !== backgroundColor)" :key="color.value"
+            @click="selectColor(color.value)" :style="{ backgroundColor: color.value }"
+            class="w-7 h-7 rounded-full cursor-pointer border-2 border-gray-400 transition-all hover:scale-110 hover:border-gray-600"
+            :title="color.name">
+          </div>
+        </div>
+      </Transition>
     </div>
   </div>
   <div class="overflow-auto h-[calc(100vh-240px)]">
@@ -69,12 +86,13 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon } from '@heroicons/vue/24/solid'
+import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid'
 import { sprites, spriteFolders } from './sprites.js';
 
 const layout = ref([]);
 const currentFolder = ref('');
 const backgroundColor = ref('#f0f0f0');
+const colorPaletteOpen = ref(false);
 
 const availableColors = [
   { name: 'Black', value: '#000000' },
@@ -141,6 +159,15 @@ const navigateBack = () => {
     const parts = currentPath.split('/');
     currentFolder.value = parts.slice(0, -1).join('/');
   }
+};
+
+const toggleColorPalette = () => {
+  colorPaletteOpen.value = !colorPaletteOpen.value;
+};
+
+const selectColor = (color) => {
+  backgroundColor.value = color;
+  colorPaletteOpen.value = false;
 };
 
 // const scrollToBottom = () => {

@@ -1,8 +1,10 @@
 <template>
-  <!-- <div v-if="!clickedScroll" @click="scrollToBottom"
-    class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
-    <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
-  </div> -->
+  <div v-if="!clickedScroll" @click="scrollToBottom"
+    class="bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
+    <div class="text-blue-800 py-4 px-8 m-auto flex items-center justify-center text-xl font-bold">
+      Start
+    </div>
+  </div>
   <div
     class="h-fit fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-3 overflow-hidden">
     <div class="flex items-center gap-2">
@@ -102,7 +104,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon, PaintBrushIcon } from '@heroicons/vue/24/solid'
 import { TrashIcon } from '@heroicons/vue/24/outline'
 import { sprites, spriteFolders } from './sprites.js';
@@ -140,7 +142,7 @@ const availableColors = [
   { name: 'Yellow', value: '#FBDB7B' },
 ];
 
-// const clickedScroll = ref(false);
+const clickedScroll = ref(false);
 const mouseXY = { x: null, y: null };
 const deleteButtonDown = ref({ itemId: null, startX: null, startY: null });
 const draggingItemId = ref(null);
@@ -194,6 +196,18 @@ const selectColor = (color) => {
   colorPaletteOpen.value = false;
 };
 
+const scrollToBottom = () => {
+  const wrapper = document.querySelector('.overflow-auto');
+  if (!wrapper) return;
+  wrapper.scrollTo({ top: wrapper.scrollHeight, left: 0, behavior: 'smooth' });
+  clickedScroll.value = true;
+};
+
+onMounted(() => {
+  // Scroll to bottom once the component is mounted
+  // scrollToBottom();
+});
+
 const paintSprite = (e) => {
   if (!brushMode.value || !selectedBrushSprite.value) return;
 
@@ -245,14 +259,6 @@ const onGridMouseDown = (e) => {
     eraseSprite(e);
   }
 };
-
-// const scrollToBottom = () => {
-//   clickedScroll.value = true;
-//   const spLib = document.getElementById('spLib');
-//   if (spLib) {
-//     spLib.scrollIntoView({ block: 'end' });
-//   }
-// };
 
 // Setup dragover listener for dragging from sprite library
 if (typeof window !== 'undefined') {

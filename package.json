@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "generate-sprites": "node scripts/generate-sprites.js"
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
@@ -27,6 +28,7 @@
     "eslint": "^9.39.1",
     "eslint-plugin-vue": "~10.5.1",
     "globals": "^16.5.0",
+    "image-size": "^2.0.2",
     "prettier": "3.6.2",
     "tailwindcss": "^4.1.18",
     "vite": "^7.2.4",

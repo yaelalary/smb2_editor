@@ -1,15 +1,69 @@
 <template>
   <div v-if="!clickedScroll" @click="scrollToBottom"
-    class="h-20 w-20 bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
-    <ArrowDownIcon class="h-10 w-10 text-blue-800 m-auto" />
+    class="bg-blue-200 border-[4px] border-blue-800 rounded-full top-[calc(100vh/2)] left-[calc(100vw/2)] translate-x-[-50%] translate-y-[-50%] fixed z-[9999] flex items-center justify-center cursor-pointer hover:bg-blue-300">
+    <div class="text-blue-800 py-4 px-8 m-auto flex items-center justify-center text-xl font-bold">
+      Start
+    </div>
   </div>
-  <div class="overflow-x-auto">
-    <GridLayout :ref="setLayoutRef" v-model:layout="layout" :col-num="200" :row-height="50" :is-draggable="true"
-      :is-resizable="false" :is-mirrored="false" :vertical-compact="false" :prevent-collision="true" :margin="[0, 0]"
-      :use-css-transforms="true" class="grid-container">
-      <GridItem v-for="item in layout" :key="item.i" :ref="e => setItemRef(item, e)" :x="item.x" :y="item.y" :w="item.w"
-        :h="item.h" :i="item.i" class="select-none group" @move="onItemMove(item.i)" @moved="onItemMoved">
-        <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite]" class="sprite-img"
+  <div
+    class="h-fit fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-3 overflow-hidden">
+    <div class="flex items-center gap-2">
+      <span class="font-semibold text-gray-700 text-sm">BG:</span>
+      <div :style="{ backgroundColor: backgroundColor }"
+        class="w-8 h-8 rounded-full border-2 border-blue-500 ring-2 ring-blue-300"
+        :title="availableColors.find(c => c.value === backgroundColor)?.name">
+      </div>
+      <button @click="toggleColorPalette"
+        class="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-all"
+        :class="{ 'rotate-180': colorPaletteOpen }">
+        <ChevronRightIcon class="w-5 h-5 text-gray-600" />
+      </button>
+      <Transition enter-active-class="transition-all duration-300 ease-out"
+        leave-active-class="transition-all duration-200 ease-in" enter-from-class="opacity-0 -translate-x-4"
+        enter-to-class="opacity-100 translate-x-0" leave-from-class="opacity-100 translate-x-0"
+        leave-to-class="opacity-0 -translate-x-4">
+        <div v-if="colorPaletteOpen" class="flex gap-2 pl-2 border-l-2 border-gray-300">
+          <div v-for="color in availableColors.filter(c => c.value !== backgroundColor)" :key="color.value"
+            @click="selectColor(color.value)" :style="{ backgroundColor: color.value }"
+            class="w-7 h-7 rounded-full cursor-pointer border-2 border-gray-400 transition-all hover:scale-110 hover:border-gray-600"
+            :title="color.name">
+          </div>
+        </div>
+      </Transition>
+      <div class="ml-4 flex items-center gap-2 border-l-2 border-gray-300 pl-4">
+        <button @click="brushMode = !brushMode; if (brushMode) eraserMode = false" :class="[
+          'w-10 h-10 flex items-center justify-center rounded transition-all',
+          brushMode ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+        ]" :title="brushMode ? 'Brush mode active' : 'Activate brush mode'">
+          <PaintBrushIcon class="w-5 h-5" />
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button @click="eraserMode = !eraserMode; if (eraserMode) brushMode = false" :class="[
+          'w-10 h-10 flex items-center justify-center rounded transition-all',
+          eraserMode ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+        ]" :title="eraserMode ? 'Eraser mode active' : 'Activate eraser mode'">
+          <TrashIcon class="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="overflow-auto h-[calc(100vh-240px)]">
+    <div class="grid-container relative" @drop="onDrop" @dragover.prevent @mousedown="onGridMouseDown">
+      <div v-if="dropIndicator.visible"
+        :style="{ left: dropIndicator.x * 50 + 'px', top: dropIndicator.y * 50 + 'px', width: dropIndicator.w * 50 + 'px', height: dropIndicator.h * 50 + 'px' }"
+        class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30 pointer-events-none z-[9998]">
+      </div>
+      <div v-if="brushIndicator.visible && brushIndicator.sprite && sprites[brushIndicator.sprite]"
+        :style="{ left: brushIndicator.x * 50 + 'px', top: brushIndicator.y * 50 + 'px', width: sprites[brushIndicator.sprite].w * 50 + 'px', height: sprites[brushIndicator.sprite].h * 50 + 'px' }"
+        class="absolute pointer-events-none z-[9998] opacity-30">
+        <img :src="sprites[brushIndicator.sprite].src" class="sprite-img" />
+      </div>
+      <div v-for="item in layout" :key="item.i"
+        :style="{ left: item.x * 50 + 'px', top: item.y * 50 + 'px', width: item.w * 50 + 'px', height: item.h * 50 + 'px', zIndex: item.z || 1 }"
+        class="absolute select-none group cursor-grab active:cursor-grabbing" @mousedown="startDrag(item, $event)"
+        @touchstart="startDrag(item, $event)">
+        <img v-if="item.sprite && sprites[item.sprite]" :src="sprites[item.sprite].src" class="sprite-img"
           :alt="item.sprite" />
         <span v-else class="text">{{ item.i }}</span>
         <div v-show="draggingItemId !== item.i" @mousedown.prevent.stop="onDeleteMouseDown(item.i, $event)"
@@ -17,15 +71,32 @@
           class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded cursor-pointer flex items-center justify-center text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-red-600">
           <XMarkIcon class="w-4 h-4" />
         </div>
-      </GridItem>
-    </GridLayout>
+      </div>
+    </div>
   </div>
-  <div id="spLib" class="w-full h-[200px] mx-auto bg-white">
-    <h2 class="text-center font-bold">Sprite Library</h2>
-    <div class="flex flex-wrap gap-4 justify-center p-4">
-      <div v-for="(sprite, spriteName) in sprites" :key="spriteName" class="inline-block max-w-[50px] cursor-move"
-        draggable="true" @drag="drag(spriteName)" @dragend="dragend" unselectable="on">
-        <img :src="sprite" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
+  <div id="spLib"
+    class="w-full h-[240px] overflow-auto mx-auto bg-gray-100 fixed bottom-0 left-0 z-[9999] border-t-1 border-gray-300">
+    <div class="flex items-center gap-2 px-2 py-2 bg-gray-200 border-b border-gray-300 min-h-[40px]">
+      <div class="w-7 h-7 flex-shrink-0">
+        <button v-if="currentFolder" @click="navigateBack"
+          class="p-1 hover:bg-gray-200 rounded w-full h-full flex items-center justify-center">
+          <ArrowLeftIcon class="w-5 h-5" />
+        </button>
+      </div>
+      <h2 class="font-bold text-sm truncate">{{ currentFolder || 'Sprite Library' }}</h2>
+    </div>
+    <div class="flex flex-wrap gap-4 justify-start p-4">
+      <div v-for="folder in subFolders" :key="folder.path" @click="navigateToFolder(folder.path)"
+        class="inline-flex flex-col items-center w-16 cursor-pointer hover:bg-gray-100 p-2 rounded">
+        <FolderIcon class="w-12 h-12 text-yellow-500" />
+        <span class="text-xs text-center mt-1 break-words w-full">{{ folder.name }}</span>
+      </div>
+      <div v-for="(sprite, spriteName) in filteredSprites" :key="spriteName" :class="[
+        'inline-block max-w-[50px] cursor-move p-1 rounded transition-all',
+        brushMode && selectedBrushSprite === spriteName ? 'ring-2 ring-blue-500 bg-blue-100' : ''
+      ]" draggable="true" @dragstart="onDragStart(spriteName, $event)" @drag="drag(spriteName)" @dragend="dragend"
+        @click="brushMode && (selectedBrushSprite = spriteName)" unselectable="on">
+        <img :src="sprite.src" :alt="spriteName" class="w-16 h-16 object-contain pointer-events-none"
           style="image-rendering: pixelated;" />
       </div>
     </div>
@@ -33,187 +104,325 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue';
-import { GridLayout, GridItem } from 'vue-grid-layout-v3';
-import { ArrowDownIcon, XMarkIcon } from '@heroicons/vue/24/solid'
+import { ref, computed, onMounted } from 'vue';
+import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon, PaintBrushIcon } from '@heroicons/vue/24/solid'
+import { TrashIcon } from '@heroicons/vue/24/outline'
+import { sprites, spriteFolders } from './sprites.js';
 
-import bobOmb from './assets/sprites/bob_omb.png';
-import flurry from './assets/sprites/flurry.png';
-import grassBlock1 from './assets/sprites/grass_block_1.png';
-import grassObj1 from './assets/sprites/grass_obj_1.png';
-import hillLeft from './assets/sprites/hill_left.png';
-import hillRight from './assets/sprites/hill_right.png';
-import hillTop from './assets/sprites/hill_top.png';
-import hillTopLeft from './assets/sprites/hill_top_left.png';
-import hillTopRight from './assets/sprites/hill_top_right.png';
-import hillLeft2 from './assets/sprites/hill_left_2.png';
-import hillRight2 from './assets/sprites/hill_right_2.png';
-import hillCenter from './assets/sprites/hill_center.png';
-import hillTopLeft2 from './assets/sprites/hill_top_left_2.png';
-import hillTopRight2 from './assets/sprites/hill_top_right_2.png';
-import hoopster from './assets/sprites/hoopster.png';
-import mushroomBlock1 from './assets/sprites/mushroom_block_1.png';
-import ninji from './assets/sprites/ninji.png';
-import pinkFireplant from './assets/sprites/pink_fireplant.png';
-import pinkMaskass from './assets/sprites/pink_maskass.png';
-import pokey from './assets/sprites/pokey.png';
-import pokeyBody from './assets/sprites/pokey_body.png';
-import potion from './assets/sprites/potion.png';
-import potBlock1 from './assets/sprites/pot_block_1.png';
-import radishObj1 from './assets/sprites/radish_obj_1.png';
-import radishObj2 from './assets/sprites/radish_obj_2.png';
-import redFireplant from './assets/sprites/red_fireplant.png';
-import redMaskass from './assets/sprites/red_maskass.png';
-import tweeter from './assets/sprites/tweeter.png';
+const layout = ref([]);
+const currentFolder = ref('');
+const backgroundColor = ref('#f0f0f0');
+const colorPaletteOpen = ref(false);
+const brushMode = ref(false);
+const selectedBrushSprite = ref(null);
+const isPainting = ref(false);
+const eraserMode = ref(false);
+const isErasing = ref(false);
 
-const sprites = {
-  bob_omb: bobOmb,
-  flurry: flurry,
-  grass_block_1: grassBlock1,
-  grass_obj_1: grassObj1,
-  hill_left: hillLeft,
-  hill_right: hillRight,
-  hill_top: hillTop,
-  hill_top_left: hillTopLeft,
-  hill_top_right: hillTopRight,
-  hill_left_2: hillLeft2,
-  hill_right_2: hillRight2,
-  hill_center: hillCenter,
-  hill_top_left_2: hillTopLeft2,
-  hill_top_right_2: hillTopRight2,
-  hoopster: hoopster,
-  mushroom_block_1: mushroomBlock1,
-  ninji: ninji,
-  pink_fireplant: pinkFireplant,
-  pink_maskass: pinkMaskass,
-  pokey: pokey,
-  pokey_body: pokeyBody,
-  potion: potion,
-  pot_block_1: potBlock1,
-  radish_obj_1: radishObj1,
-  radish_obj_2: radishObj2,
-  red_fireplant: redFireplant,
-  red_maskass: redMaskass,
-  tweeter: tweeter,
-};
+const availableColors = [
+  { name: 'Black', value: '#000000' },
 
-const layout = ref([
-  { "x": -1, "y": 100, "w": 1, "h": 1, "i": "1", "sprite": "mushroom_block_1" }, //USED FOR FIXING GRID, SHOULD BE REMOVED AT THE END
-]);
+  { name: 'Dark Blue', value: '#0000A8' },
+  { name: 'Blue', value: '#0000FE' },
+  { name: 'Light Blue', value: '#0078F8' },
+  { name: 'Lighter Blue', value: '#3CBCFD' },
+
+  { name: 'Purple', value: '#44009C' },
+  { name: 'Light Purple', value: '#9979F9' },
+  { name: 'Lighter Purple', value: '#B8B9F8' },
+
+  { name: 'Dark Teal', value: '#004358' },
+  { name: 'Teal', value: '#008088' },
+  { name: 'Light Teal', value: '#008B8B' },
+  { name: 'Green', value: '#00A801' },
+
+  { name: 'Dark Orange', value: '#7D0B00' },
+  { name: 'Orange', value: '#C84C0C' },
+
+  { name: 'Yellow', value: '#FBDB7B' },
+];
 
 const clickedScroll = ref(false);
 const mouseXY = { x: null, y: null };
-const DragPos = { x: null, y: null, w: 1, h: 1, i: null, sprite: null };
-const layoutRef = ref(null);
-const itemRefs = ref({});
 const deleteButtonDown = ref({ itemId: null, startX: null, startY: null });
 const draggingItemId = ref(null);
+const draggedItem = ref(null);
+const dragOffset = ref({ x: 0, y: 0 });
+const dropIndicator = ref({ visible: false, x: 0, y: 0, w: 1, h: 1 });
+const brushIndicator = ref({ visible: false, x: 0, y: 0, sprite: null });
+let nextId = 0;
+const MAX_GRID_HEIGHT = 100; // Maximum number of rows
 
-const scrollToBottom = () => {
-  clickedScroll.value = true;
-  const spLib = document.getElementById('spLib');
-  if (spLib) {
-    spLib.scrollIntoView({ block: 'end' });
+// Filter sprites by current folder
+const filteredSprites = computed(() => {
+  const result = {};
+  for (const [name, sprite] of Object.entries(sprites)) {
+    if (sprite.folder === currentFolder.value) {
+      result[name] = sprite;
+    }
+  }
+  return result;
+});
+
+// Get subfolders of current folder
+const subFolders = computed(() => {
+  const result = [];
+  for (const [path, folder] of Object.entries(spriteFolders)) {
+    if (folder.parent === currentFolder.value) {
+      result.push(folder);
+    }
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const navigateToFolder = (folderPath) => {
+  currentFolder.value = folderPath;
+};
+
+const navigateBack = () => {
+  const currentPath = currentFolder.value;
+  if (currentPath) {
+    const parts = currentPath.split('/');
+    currentFolder.value = parts.slice(0, -1).join('/');
   }
 };
 
-// Setup dragover listener
+const toggleColorPalette = () => {
+  colorPaletteOpen.value = !colorPaletteOpen.value;
+};
+
+const selectColor = (color) => {
+  backgroundColor.value = color;
+  colorPaletteOpen.value = false;
+};
+
+const scrollToBottom = () => {
+  const wrapper = document.querySelector('.overflow-auto');
+  if (!wrapper) return;
+  wrapper.scrollTo({ top: wrapper.scrollHeight, left: 0, behavior: 'smooth' });
+  clickedScroll.value = true;
+};
+
+onMounted(() => {
+  // Scroll to bottom once the component is mounted
+  // scrollToBottom();
+});
+
+const paintSprite = (e) => {
+  if (!brushMode.value || !selectedBrushSprite.value) return;
+
+  const gridContainer = document.querySelector('.grid-container');
+  if (!gridContainer) return;
+
+  const rect = gridContainer.getBoundingClientRect();
+  const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+  const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+  // Check if sprite already exists at this position
+  const exists = layout.value.some(item => item.x === x && item.y === y && item.sprite === selectedBrushSprite.value);
+  if (exists) return;
+
+  const spriteData = sprites[selectedBrushSprite.value];
+  layout.value.push({
+    x,
+    y,
+    w: spriteData.w,
+    h: spriteData.h,
+    i: String(nextId++),
+    sprite: selectedBrushSprite.value,
+    z: layout.value.length
+  });
+};
+
+const eraseSprite = (e) => {
+  if (!eraserMode.value) return;
+
+  const gridContainer = document.querySelector('.grid-container');
+  if (!gridContainer) return;
+
+  const rect = gridContainer.getBoundingClientRect();
+  const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+  const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+  // Remove all sprites at this position
+  layout.value = layout.value.filter(item => !(item.x === x && item.y === y));
+};
+
+const onGridMouseDown = (e) => {
+  if (brushMode.value && selectedBrushSprite.value) {
+    e.preventDefault();
+    isPainting.value = true;
+    paintSprite(e);
+  } else if (eraserMode.value) {
+    e.preventDefault();
+    isErasing.value = true;
+    eraseSprite(e);
+  }
+};
+
+// Setup dragover listener for dragging from sprite library
 if (typeof window !== 'undefined') {
   document.addEventListener('dragover', (e) => {
     mouseXY.x = e.clientX;
     mouseXY.y = e.clientY;
+
+    // Update drop indicator if dragging a sprite from library
+    if (mouseXY.sprite) {
+      const gridContainer = document.querySelector('.grid-container');
+      if (gridContainer) {
+        const rect = gridContainer.getBoundingClientRect();
+        const spriteData = sprites[mouseXY.sprite];
+        const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+        const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+        dropIndicator.value = {
+          visible: true,
+          x,
+          y,
+          w: spriteData.w,
+          h: spriteData.h
+        };
+      }
+    }
   }, false);
+
+  document.addEventListener('mousemove', (e) => {
+    if (draggedItem.value) {
+      const gridContainer = document.querySelector('.grid-container');
+      if (gridContainer) {
+        const rect = gridContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left - dragOffset.value.x + window.scrollX;
+        const y = e.clientY - rect.top - dragOffset.value.y + window.scrollY;
+
+        const item = layout.value.find(i => i.i === draggedItem.value.i);
+        if (item) {
+          item.x = Math.max(0, Math.round(x / 50));
+          item.y = Math.max(0, Math.min(Math.round(y / 50), MAX_GRID_HEIGHT - 1));
+        }
+      }
+    }
+
+    // Update brush indicator position
+    if (brushMode.value && selectedBrushSprite.value) {
+      const gridContainer = document.querySelector('.grid-container');
+      if (gridContainer) {
+        const rect = gridContainer.getBoundingClientRect();
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        // Check if mouse is over the grid
+        if (mouseX >= rect.left && mouseX <= rect.right && mouseY >= rect.top && mouseY <= rect.bottom) {
+          const x = Math.max(0, Math.floor((mouseX - rect.left + window.scrollX) / 50));
+          const y = Math.max(0, Math.min(Math.floor((mouseY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+          brushIndicator.value = {
+            visible: true,
+            x,
+            y,
+            sprite: selectedBrushSprite.value
+          };
+        } else {
+          brushIndicator.value.visible = false;
+        }
+      }
+    } else {
+      brushIndicator.value.visible = false;
+    }
+
+    // Handle painting while mouse is pressed - check if button is still down
+    if (e.buttons === 1) {
+      if (isPainting.value && brushMode.value && selectedBrushSprite.value) {
+        paintSprite(e);
+      } else if (isErasing.value && eraserMode.value) {
+        eraseSprite(e);
+      }
+    } else {
+      // Button released, stop painting/erasing
+      isPainting.value = false;
+      isErasing.value = false;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    draggedItem.value = null;
+    draggingItemId.value = null;
+    isPainting.value = false;
+    isErasing.value = false;
+  });
 }
 
-const drag = async (spriteName) => {
-  const parentRect = document.querySelector('.grid-container').getBoundingClientRect();
-  let mouseInGrid = false;
-  if (((mouseXY.x > parentRect.left) && (mouseXY.x < parentRect.right)) &&
-    ((mouseXY.y > parentRect.top) && (mouseXY.y < parentRect.bottom))) {
-    mouseInGrid = true;
-  }
-
-  if (mouseInGrid === true && (layout.value.findIndex(item => item.i === 'drop')) === -1) {
-    layout.value.push({
-      x: 0,
-      y: 0,
-      w: 1,
-      h: 1,
-      i: 'drop',
-      sprite: spriteName
-    });
-    await nextTick();
-  }
-
-  if (!itemRefs.value?.drop) {
+const onDragStart = (spriteName, event) => {
+  // In brush mode, just select the sprite
+  if (brushMode.value) {
+    selectedBrushSprite.value = spriteName;
+    event.preventDefault();
     return;
   }
 
-  const index = layout.value.findIndex(item => item.i === 'drop');
-  if (index !== -1) {
-    if (itemRefs.value?.drop?.el?.style) {
-      itemRefs.value.drop.el.style.display = 'none';
-    }
-    // Calcualte new position based on cell size
-    const mouseRelativeX = mouseXY.x - parentRect.left;
-    const mouseRelativeY = mouseXY.y - parentRect.top;
-    const cellWidth = 50; // row-height = 50
-    const cellHeight = 50;
+  // Hide the default drag image
+  const img = new Image();
+  img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  event.dataTransfer.setDragImage(img, 0, 0);
 
-    const new_pos = {
-      x: Math.floor(mouseRelativeX / cellWidth),
-      y: Math.floor(mouseRelativeY / cellHeight)
-    };
-
-    if (mouseInGrid === true) {
-      layout.value[index].x = new_pos.x;
-      layout.value[index].y = new_pos.y;
-
-      layoutRef.value.emitter.emit('dragEvent', ['dragstart', 'drop', new_pos.x, new_pos.y, 1, 1]);
-      DragPos.i = String(layout.value.length);
-      DragPos.x = new_pos.x;
-      DragPos.y = new_pos.y;
-      DragPos.sprite = spriteName;
-    }
-    if (mouseInGrid === false) {
-      layoutRef.value.emitter.emit('dragEvent', ['dragend', 'drop', new_pos.x, new_pos.y, 1, 1]);
-      layout.value = layout.value.filter(obj => obj.i !== 'drop');
-      await nextTick();
-    }
-  }
+  // Store the sprite name for the drop event
+  mouseXY.sprite = spriteName;
 };
 
-const dragend = async () => {
-  const parentRect = document.querySelector('.grid-container').getBoundingClientRect();
-  let mouseInGrid = false;
-  if (((mouseXY.x > parentRect.left) && (mouseXY.x < parentRect.right)) &&
-    ((mouseXY.y > parentRect.top) && (mouseXY.y < parentRect.bottom))) {
-    mouseInGrid = true;
-  }
+const drag = (spriteName) => {
+  // Store the sprite name for the drop event
+  mouseXY.sprite = spriteName;
+};
 
-  if (mouseInGrid === true) {
-    layoutRef.value.emitter.emit('dragEvent', ['dragend', 'drop', DragPos.x, DragPos.y, 1, 1]);
-    layout.value = layout.value.filter(obj => obj.i !== 'drop');
+const dragend = () => {
+  mouseXY.sprite = null;
+  dropIndicator.value.visible = false;
+};
 
+const onDrop = (e) => {
+  if (mouseXY.sprite) {
+    const gridContainer = document.querySelector('.grid-container');
+    const rect = gridContainer.getBoundingClientRect();
+    const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
+    const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
+
+    const spriteData = sprites[mouseXY.sprite];
     layout.value.push({
-      x: DragPos.x,
-      y: DragPos.y,
-      w: 1,
-      h: 1,
-      i: DragPos.i,
-      sprite: DragPos.sprite
+      x,
+      y,
+      w: spriteData.w,
+      h: spriteData.h,
+      i: String(nextId++),
+      sprite: mouseXY.sprite,
+      z: layout.value.length
     });
-    await nextTick();
-    layoutRef.value.emitter.emit('dragEvent', ['dragend', DragPos.i, DragPos.x, DragPos.y, 1, 1]);
+
+    mouseXY.sprite = null;
+    dropIndicator.value.visible = false;
   }
 };
 
-const setItemRef = (item, e) => {
-  itemRefs.value[item.i] = e;
-};
+const startDrag = (item, event) => {
+  // Don't start drag if in brush or eraser mode
+  if (brushMode.value || eraserMode.value) {
+    return;
+  }
 
-const setLayoutRef = (e) => {
-  layoutRef.value = e;
+  // Don't start drag if clicking on delete button
+  if (event.target.closest('.bg-red-500')) {
+    return;
+  }
+
+  draggedItem.value = item;
+  draggingItemId.value = item.i;
+
+  const element = event.currentTarget;
+  const rect = element.getBoundingClientRect();
+  dragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+
+  event.preventDefault();
 };
 
 const removeItem = (itemId) => {
@@ -240,14 +449,6 @@ const onDeleteMouseUp = (itemId, event) => {
   }
   deleteButtonDown.value = { itemId: null, startX: null, startY: null };
 };
-
-const onItemMove = (itemId) => {
-  draggingItemId.value = itemId;
-};
-
-const onItemMoved = () => {
-  draggingItemId.value = null;
-};
 </script>
 
 <style>
@@ -262,7 +463,13 @@ html {
 
 .grid-container {
   width: 10000px;
-  min-height: 10000px;
+  height: 5000px;
+  background-color: v-bind(backgroundColor);
+  background-image:
+    linear-gradient(to right, #ccc 1px, transparent 1px),
+    linear-gradient(to bottom, #ccc 1px, transparent 1px);
+  background-size: 50px 50px;
+  background-position: 0 0;
 }
 
 .vue-grid-layout {

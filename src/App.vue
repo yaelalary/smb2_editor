@@ -51,7 +51,7 @@
   <!-- Mini-Map: 1/50 scale of 10000x5000 grid = 200x100px -->
   <div class="fixed top-40 right-4 bg-white outline-2 outline-gray-500 rounded overflow-hidden shadow-lg z-[9998]"
     style="width: 200px; height: 100px; image-rendering: pixelated;">
-    <div class="relative w-full h-full bg-gray-50">
+    <div class="relative w-full h-full" :style="{ backgroundColor: backgroundColor }">
       <!-- Miniaturized sprites -->
       <div v-for="item in layout" :key="item.i" :style="{
         left: (item.x * 50 / 50) + 'px',

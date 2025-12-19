@@ -48,7 +48,33 @@
       </div>
     </div>
   </div>
-  <div class="overflow-auto h-[calc(100vh-240px)]">
+  <!-- Mini-Map: 1/50 scale of 10000x5000 grid = 200x100px -->
+  <div class="fixed top-40 right-4 bg-white outline-2 outline-gray-500 rounded overflow-hidden shadow-lg z-[9998]"
+    style="width: 200px; height: 100px; image-rendering: pixelated;">
+    <div class="relative w-full h-full bg-gray-50">
+      <!-- Miniaturized sprites -->
+      <div v-for="item in layout" :key="item.i" :style="{
+        left: (item.x * 50 / 50) + 'px',
+        top: (item.y * 50 / 50) + 'px',
+        width: (item.w * 50 / 50) + 'px',
+        height: (item.h * 50 / 50) + 'px',
+        backgroundColor: sprites[item.sprite]?.mainColor || '#3b82f6',
+        border: '1px solid rgba(0,0,0,0.25)'
+      }" class="absolute">
+      </div>
+
+      <!-- Viewport indicator (red frame) -->
+      <div class="absolute border-2 border-red-500 pointer-events-none" :style="{
+        left: (scrollPosition.x / 50) + 'px',
+        top: (scrollPosition.y / 50) + 'px',
+        width: (viewportWidth / 50) + 'px',
+        height: (viewportHeight / 50) + 'px'
+      }">
+      </div>
+    </div>
+  </div>
+
+  <div class="overflow-auto h-[calc(100vh-240px)]" @scroll="updateScrollPosition">
     <div class="grid-container relative" @drop="onDrop" @dragover.prevent @mousedown="onGridMouseDown">
       <div v-if="dropIndicator.visible"
         :style="{ left: dropIndicator.x * 50 + 'px', top: dropIndicator.y * 50 + 'px', width: dropIndicator.w * 50 + 'px', height: dropIndicator.h * 50 + 'px' }"
@@ -105,7 +131,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { ArrowDownIcon, XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon, PaintBrushIcon } from '@heroicons/vue/24/solid'
+import { XMarkIcon, FolderIcon, ArrowLeftIcon, ChevronRightIcon, PaintBrushIcon } from '@heroicons/vue/24/solid'
 import { TrashIcon } from '@heroicons/vue/24/outline'
 import { sprites, spriteFolders } from './sprites.js';
 
@@ -118,6 +144,9 @@ const selectedBrushSprite = ref(null);
 const isPainting = ref(false);
 const eraserMode = ref(false);
 const isErasing = ref(false);
+const scrollPosition = ref({ x: 0, y: 0 });
+const viewportWidth = ref(0);
+const viewportHeight = ref(0);
 
 const availableColors = [
   { name: 'Black', value: '#000000' },
@@ -167,7 +196,7 @@ const filteredSprites = computed(() => {
 // Get subfolders of current folder
 const subFolders = computed(() => {
   const result = [];
-  for (const [path, folder] of Object.entries(spriteFolders)) {
+  for (const folder of Object.values(spriteFolders)) {
     if (folder.parent === currentFolder.value) {
       result.push(folder);
     }
@@ -203,9 +232,25 @@ const scrollToBottom = () => {
   clickedScroll.value = true;
 };
 
+const updateScrollPosition = (e) => {
+  const wrapper = e.target;
+  scrollPosition.value = {
+    x: wrapper.scrollLeft,
+    y: wrapper.scrollTop
+  };
+};
+
+
 onMounted(() => {
   // Scroll to bottom once the component is mounted
   // scrollToBottom();
+
+  // Initialize viewport dimensions
+  const wrapper = document.querySelector('.overflow-auto');
+  if (wrapper) {
+    viewportWidth.value = wrapper.clientWidth;
+    viewportHeight.value = wrapper.clientHeight;
+  }
 });
 
 const paintSprite = (e) => {
@@ -505,5 +550,11 @@ html {
   object-fit: contain;
   image-rendering: pixelated;
   pointer-events: none;
+}
+
+.minimap-container {
+  width: 200px;
+  height: 150px;
+  background-size: 1px 1px;
 }
 </style>

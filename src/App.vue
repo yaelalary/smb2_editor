@@ -263,8 +263,8 @@ const paintSprite = (e) => {
   const x = Math.max(0, Math.floor((e.clientX - rect.left + window.scrollX) / 50));
   const y = Math.max(0, Math.min(Math.floor((e.clientY - rect.top + window.scrollY) / 50), MAX_GRID_HEIGHT - 1));
 
-  // Check if sprite already exists at this position
-  const exists = layout.value.some(item => item.x === x && item.y === y && item.sprite === selectedBrushSprite.value);
+  // Check if any sprite already exists at this position
+  const exists = layout.value.some(item => item.x === x && item.y === y);
   if (exists) return;
 
   const spriteData = sprites[selectedBrushSprite.value];

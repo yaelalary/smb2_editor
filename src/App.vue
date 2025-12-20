@@ -6,7 +6,7 @@
     </div>
   </div>
   <div
-    class="h-fit fixed left-12 right-12 top-8 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-3 overflow-hidden">
+    class="h-fit fixed left-6 right-6 top-4 bg-gray-100 z-[9999] border border-gray-300 rounded-lg shadow-md p-3 overflow-hidden">
     <div class="flex items-center gap-2">
       <span class="font-semibold text-gray-700 text-sm">BG:</span>
       <div :style="{ backgroundColor: backgroundColor }"
@@ -30,7 +30,7 @@
           </div>
         </div>
       </Transition>
-      <div class="ml-4 flex items-center gap-2 border-l-2 border-gray-300 pl-4">
+      <div class="ml-auto flex items-center gap-2 pl-4">
         <button @click="brushMode = !brushMode; if (brushMode) eraserMode = false" :class="[
           'w-10 h-10 flex items-center justify-center rounded transition-all',
           brushMode ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -49,9 +49,9 @@
     </div>
   </div>
   <!-- Mini-Map: 1/50 scale of 10000x5000 grid = 200x100px -->
-  <div class="fixed top-40 right-4 bg-white outline-2 outline-gray-500 rounded overflow-hidden shadow-lg z-[9998]"
-    style="width: 200px; height: 100px; image-rendering: pixelated;">
-    <div class="relative w-full h-full" :style="{ backgroundColor: backgroundColor }">
+  <div class="fixed top-23 right-8 bg-white border border-gray-300 shadow-md z-[9998]"
+    style="width: 202px; height: 102px; image-rendering: pixelated;">
+    <div class="relative w-full h-full overflow-hidden" :style="{ backgroundColor: backgroundColor }">
       <!-- Miniaturized sprites -->
       <div v-for="item in layout" :key="item.i" :style="{
         left: (item.x * 50 / 50) + 'px',
@@ -78,11 +78,11 @@
     <div class="grid-container relative" @drop="onDrop" @dragover.prevent @mousedown="onGridMouseDown">
       <div v-if="dropIndicator.visible"
         :style="{ left: dropIndicator.x * 50 + 'px', top: dropIndicator.y * 50 + 'px', width: dropIndicator.w * 50 + 'px', height: dropIndicator.h * 50 + 'px' }"
-        class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30 pointer-events-none z-[9998]">
+        class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-30 pointer-events-none z-[9997]">
       </div>
       <div v-if="brushIndicator.visible && brushIndicator.sprite && sprites[brushIndicator.sprite]"
         :style="{ left: brushIndicator.x * 50 + 'px', top: brushIndicator.y * 50 + 'px', width: sprites[brushIndicator.sprite].w * 50 + 'px', height: sprites[brushIndicator.sprite].h * 50 + 'px' }"
-        class="absolute pointer-events-none z-[9998] opacity-30">
+        class="absolute pointer-events-none z-[9997] opacity-30">
         <img :src="sprites[brushIndicator.sprite].src" class="sprite-img" />
       </div>
       <div v-for="item in layout" :key="item.i"
